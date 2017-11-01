@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Spyder IDE
+.spyproject/
+
+# Packages
+*.egg
+*.egg-info
+
+# C extensions
+*.so
+
+# unit test
+.cache/
