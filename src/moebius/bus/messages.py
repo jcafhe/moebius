@@ -6,7 +6,7 @@ Created on Sun Oct 29 12:51:21 2017
 
 from collections import namedtuple as _nt
 from collections.abc import Container
-from pyrsistent import (m, s)
+from pyrsistent import (m as pm, s as se)
 
 
 class BM(_nt('_Bm', 'tag, status, payload, seeds')):
@@ -18,7 +18,7 @@ class BM(_nt('_Bm', 'tag, status, payload, seeds')):
         Previous seeds (if any) are removed and the provided unique id is
         stored in the appropriate structure (i.e. seeds dict).
         """
-        seeds = m(**{self.tag: s(uid)})
+        seeds = pm(**{self.tag: se(uid)})
         return self._replace(seeds=seeds)
 
 
@@ -129,12 +129,12 @@ def _match_tag(mtags):
         if tag.find('...') == -1:
             exact_mtags.append(tag)
         else:
-            startswith_ftag = tag.split('...')[0]
-            startswith_mtags.append(startswith_ftag)
+            startswith_mtag = tag.split('...')[0]
+            startswith_mtags.append(startswith_mtag)
 
-    def in_startswith_mtags(tg):
-        for ftag in startswith_mtags:
-            if tg.startswith(ftag):
+    def in_startswith_mtags(tag):
+        for mtag in startswith_mtags:
+            if tag.startswith(mtag):
                 return True
         return False
 
@@ -157,7 +157,7 @@ def combine_seeds(*args):
     """Combines multiples seeds and returns a seeds map.
     """
     seedss = args
-    result = m()
+    result = pm()
 
     for seeds in seedss:
         if seeds is not None:
