@@ -149,3 +149,42 @@ def _match_status(mstatus):
     exact_status = _to_tuple(mstatus)
 
     return lambda sta: sta in exact_status
+
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+def combine_seeds(*args):
+    """Combines multiples seeds and returns a seeds map.
+    """
+    seedss = args
+    result = m()
+
+    for seeds in seedss:
+        if seeds is not None:
+            result = result.update_with(lambda vec, val: vec | val, seeds)
+
+    return result
+
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+def propagates_seeds():
+    """
+    wrapping function to propagates and combines seeds from one or
+    multiple streams of BusMessages.
+
+    The returned function takes as input one or multiple rx.Observables
+    emitting BusMessages, forwards messages with
+    *READY* status to the
+    decorated function and updates seeds of messages emitted by the
+    decorated function.
+
+    Note: the decorated function must returns an rx.Observable of BusMessage.
+    """
+    def inner(*args, **kwargs):
+        pass
+
+    raise NotImplementedError
+
+
+
