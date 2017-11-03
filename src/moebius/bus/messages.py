@@ -25,6 +25,32 @@ class BM(_nt('_Bm', 'tag, status, payload, seeds')):
 # alias for BusMessage
 BusMessage = BM
 
+READY = 'READY'
+PROCESSING = 'PROCESSING'
+
+def ready(tag, payload=None, seeds=pm()):
+    """
+    Returns a bus message with a READY status.
+    """
+    return BM(tag=tag,
+              status=READY,
+              payload=payload,
+              seeds=seeds)
+
+def processing(tag, ratio=None, meta=None, seeds=pm()):
+    """
+    Returns a bus message with a PROCESSING status.
+
+    ratio must be None or a tuple of the step that has just been processed, and
+    the total number of steps.
+    """
+    payload = pm(ratio=ratio,
+                 meta=meta)
+
+    return BM(tag=tag,
+              status=PROCESSING,
+              payload=payload,
+              seeds=seeds)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
