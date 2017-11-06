@@ -22,7 +22,7 @@ ascan = api.Ascan(identifier='ascan#0',
                   resources=pv())
 
 
-bm = msg.ready(tag='engine/ASCAN_CHANGE', payload=ascan)
+bm = msg.ready(tag='ASCAN', payload=ascan)
 
 message8 = rx.Observable.just(bm)
 

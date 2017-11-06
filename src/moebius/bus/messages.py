@@ -6,7 +6,7 @@ Created on Sun Oct 29 12:51:21 2017
 
 from collections import namedtuple as _nt
 from collections.abc import Container
-from pyrsistent import (m as pm, s as se)
+from pyrsistent import (m as pm, s as ps, freeze)
 
 
 class BM(_nt('_Bm', 'tag, status, payload, seeds')):
@@ -18,7 +18,7 @@ class BM(_nt('_Bm', 'tag, status, payload, seeds')):
         Previous seeds (if any) are removed and the provided unique id is
         stored in the appropriate structure (i.e. seeds dict).
         """
-        seeds = pm(**{self.tag: se(uid)})
+        seeds = pm(**{self.tag: ps(uid)})
         return self._replace(seeds=seeds)
 
 
@@ -27,8 +27,12 @@ BusMessage = BM
 
 READY = 'READY'
 PROCESSING = 'PROCESSING'
+ERROR = 'ERROR'
 
-def ready(tag, payload=None, seeds=pm()):
+UNIDENTIFIED = 'UNIDENTIFIED'
+UNIDENTIFIED_SEEDS = freeze({UNIDENTIFIED: ps()})
+
+def ready(tag, payload=None, seeds=UNIDENTIFIED_SEEDS):
     """
     Returns a bus message with a READY status.
     """
@@ -37,7 +41,8 @@ def ready(tag, payload=None, seeds=pm()):
               payload=payload,
               seeds=seeds)
 
-def processing(tag, ratio=None, meta=None, seeds=pm()):
+
+def processing(tag, ratio=None, meta=None, seeds=UNIDENTIFIED_SEEDS):
     """
     Returns a bus message with a PROCESSING status.
 
@@ -50,6 +55,13 @@ def processing(tag, ratio=None, meta=None, seeds=pm()):
     return BM(tag=tag,
               status=PROCESSING,
               payload=payload,
+              seeds=seeds)
+
+
+def error(tag, ex, seeds=UNIDENTIFIED_SEEDS):
+    return BM(tag=tag,
+              status=ERROR,
+              payload=ex,
               seeds=seeds)
 
 # -----------------------------------------------------------------------------

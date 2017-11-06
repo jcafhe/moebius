@@ -6,7 +6,7 @@ Created on Fri Nov  3 15:23:34 2017
 import numpy as np
 import rx
 from rx import Observable
-from moebius.bus.messages import (BM, READY, ready, oftype)
+from moebius.bus.messages import (BM, READY, ready, error, oftype, combine_seeds)
 from . import api
 
 
@@ -18,21 +18,30 @@ class Engine():
                     .filter(oftype(status=READY))
                     )
 
+        ascanR8 = input_R8.filter(oftype('ASCAN', READY))
 
-        ascan8 = (input_R8
-                  .filter(oftype('engine/ASCAN_CHANGE'))
-                  .map(ASCAN_node))
+#        ascan8 = (input_R8
+#                  .filter(oftype('engine/ASCAN_CHANGE'))
+#                  .map(ASCAN_node))
 
-        energy8 = (ascan8
-                   .filter(oftype('engine/ASCAN', status=READY))
-                   .map(lambda bm: ENERGY_node(bm))
+#        energy8 = (ascan8
+#                   .filter(oftype('engine/ASCAN', status=READY))
+#                   .map(lambda bm: ENERGY_node(bm))
+#                   )
+        energy_node = node(function=compute_energy,
+                           tag='ENERGY',
+                           scheduler=rx.concurrency.thread_pool_scheduler)
+
+        energy8 = (ascanR8
+                   .map(energy_node)
+                   .switch_latest()
                    )
 
-        discrete_streams = [input_R8.filter(oftype('engine/STEP'))]
-        discrete8 = rx.Observable.combine_latest()
+#        discrete_streams = [input_R8.filter(oftype('engine/STEP'))]
+#        discrete8 = rx.Observable.combine_latest()
 
 
-        output8s = [ascan8, energy8]
+        output8s = [energy8,]
 
         self._output8 = Observable.merge(output8s)
 
@@ -43,6 +52,25 @@ class Engine():
 
 
 
+def node(function, tag, scheduler=None):
+
+    def inner(*args):
+        incoming_seeds = [bm.seeds for bm in args]
+        r_seeds = combine_seeds(*incoming_seeds)
+        f_args = tuple([bm.payload for bm in args])
+
+        def spawn_ex(e):
+            return (rx.Observable
+                    .just(error(tag=tag, ex=e, seeds=r_seeds))
+                    )
+
+        return (rx.Observable
+                .from_(f_args, scheduler=scheduler)
+                .map(function)
+                .map(lambda value: ready(tag=tag, payload=value, seeds=r_seeds))
+                .catch_exception(spawn_ex)
+                )
+    return inner
 
 
 def ENERGY_node(bm):
@@ -52,15 +80,9 @@ def ENERGY_node(bm):
     return rbm
 
 
-def ASCAN_node(bm):
-#    if bm.tag == 'engine/ASCAN_CHANGE':
-    # TODO: test for shape for sources if any
 
-    rbm = bm._replace(tag='engine/ASCAN')
-
-    return rbm
-
-
-def compute_energy(signals_array):
+def compute_energy(signals):
+    signals_array = signals.data
+    1/0
     return np.sum(signals_array **2, axis=0)
 
