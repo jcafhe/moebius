@@ -14,15 +14,16 @@ from moebius.core.engine import Engine
 
 nrow = 10
 ncol = 6
+data = np.arange(nrow * ncol).reshape((nrow, ncol))
 
 ascan = api.Ascan(identifier='ascan#0',
                   sensor='tusht15',
-                  data=np.arange(nrow * ncol).reshape((nrow, ncol)),
+                  data=data,
                   date='2017-11-03',
                   resources=pv())
 
 
-bm = msg.ready(tag='ASCAN', payload=ascan)
+bm = msg.ready(tag='ASCAN', payload=data)
 
 message8 = rx.Observable.just(bm)
 

@@ -10,6 +10,19 @@ from moebius.bus.messages import (BM, READY, ready, error, oftype, combine_seeds
 from . import api
 
 
+"""
+input:
+ASCAN np.array 2d
+
+
+output:
+ENERGY np.array 1d
+MARKED_IDXS tuple
+MARKER_FFT
+
+"""
+
+
 class Engine():
     def __init__(self, busMessage8):
         main_scheduler = rx.concurrency.EventLoopScheduler()
@@ -28,6 +41,7 @@ class Engine():
 #                   .filter(oftype('engine/ASCAN', status=READY))
 #                   .map(lambda bm: ENERGY_node(bm))
 #                   )
+
         energy_node = node(function=compute_energy,
                            tag='ENERGY',
                            scheduler=rx.concurrency.thread_pool_scheduler)
@@ -37,13 +51,10 @@ class Engine():
                    .switch_latest()
                    )
 
-#        discrete_streams = [input_R8.filter(oftype('engine/STEP'))]
-#        discrete8 = rx.Observable.combine_latest()
 
 
-        output8s = [energy8,]
-
-        self._output8 = Observable.merge(output8s)
+        self._output8 = Observable.merge([energy8,
+                                          ])
 
     @property
     def output8(self):
@@ -82,7 +93,8 @@ def ENERGY_node(bm):
 
 
 def compute_energy(signals):
-    signals_array = signals.data
-    1/0
+    signals_array = signals
+#    signals_array = signals.data
+#    1/0
     return np.sum(signals_array **2, axis=0)
 
