@@ -22,9 +22,9 @@ Ressource = namedtuple('Resource', ['rtype',  # ressources type
                                     ]
                        )
 
-def create_ascan():
-    nrow = 10
-    ncol = 5
+def create_ascan(nrow=10, ncol=5):
+#    nrow = 10
+#    ncol = 5
     sig_count = nrow * ncol
 
     f0_Hz = 20

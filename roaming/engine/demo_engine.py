@@ -25,7 +25,15 @@ ascan = api.Ascan(identifier='ascan#0',
 
 bm = msg.ready(tag='ASCAN', payload=data)
 
-message8 = rx.Observable.just(bm)
+msgs = [bm,
+        msg.ready('MARKER_ADD', 0),
+        msg.ready('MARKER_ADD', 12),
+        msg.ready('MARKER_ADD', -1),
+        msg.ready('MARKER_REMOVE', 0),
+        msg.ready('MARKER_CLEAR_ALL'),
+        ]
+
+message8 = rx.Observable.from_(msgs)
 
 engine = Engine(message8)
 engine.output8.subscribe(print)

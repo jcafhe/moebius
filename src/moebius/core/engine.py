@@ -5,6 +5,7 @@ Created on Fri Nov  3 15:23:34 2017
 """
 import numpy as np
 import rx
+from pyrsistent import (s as ps)
 from rx import Observable
 from moebius.bus.messages import (BM, READY, ready, error, oftype, combine_seeds)
 from . import api
@@ -33,15 +34,6 @@ class Engine():
 
         ascanR8 = input_R8.filter(oftype('ASCAN', READY))
 
-#        ascan8 = (input_R8
-#                  .filter(oftype('engine/ASCAN_CHANGE'))
-#                  .map(ASCAN_node))
-
-#        energy8 = (ascan8
-#                   .filter(oftype('engine/ASCAN', status=READY))
-#                   .map(lambda bm: ENERGY_node(bm))
-#                   )
-
         energy_node = node(function=compute_energy,
                            tag='ENERGY',
                            scheduler=rx.concurrency.thread_pool_scheduler)
@@ -51,9 +43,10 @@ class Engine():
                    .switch_latest()
                    )
 
-
+        markers8 = markers(input_R8)
 
         self._output8 = Observable.merge([energy8,
+                                          markers8,
                                           ])
 
     @property
@@ -61,6 +54,39 @@ class Engine():
         return self._output8
 
 
+def markers(bm8):
+    tag = 'MARKERS'
+
+    def reducer(previous_bm, bm):
+        state = previous_bm.payload
+
+        if bm.tag == 'MARKER_ADD':
+            next_state = state.add(int(bm.payload))
+            return ready(tag=tag,
+                         payload=next_state,
+                         seeds=bm.seeds)
+
+        if bm.tag == 'MARKER_REMOVE':
+            next_state = state.remove(int(bm.payload))
+            return ready(tag=tag,
+                         payload=next_state,
+                         seeds=bm.seeds)
+
+        if bm.tag == 'MARKER_CLEAR_ALL':
+            next_state = ps()
+            return ready(tag=tag,
+                         payload=next_state,
+                         seeds=bm.seeds)
+
+        etext = 'Action not handled from message {}'.format(bm)
+        raise ValueError(etext)
+
+    pipeline = (bm8
+                .filter(oftype(tag='MARKER...', status=READY))
+                .scan(reducer, seed=ready(tag=tag, payload=ps()))
+               )
+
+    return pipeline
 
 
 def node(function, tag, scheduler=None):
