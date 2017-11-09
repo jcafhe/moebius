@@ -10,7 +10,7 @@ import numpy as np
 import rx
 from moebius.bus import messages as msg
 from moebius.core import api
-from moebius.core.engine import Engine
+from moebius.core import engine as eng
 
 nrow = 10
 ncol = 6
@@ -25,17 +25,19 @@ ascan = api.Ascan(identifier='ascan#0',
 
 bm = msg.ready(tag='ASCAN', payload=data)
 
-msgs = [bm,
-        msg.ready('MARKER_ADD', 0),
-        msg.ready('MARKER_ADD', 12),
-        msg.ready('MARKER_ADD', -1),
-        msg.ready('MARKER_REMOVE', 0),
-        msg.ready('MARKER_CLEAR_ALL'),
+msgs = [bm.identify(0),
+        msg.ready('MARKER_ADD', 0).identify(1),
+        msg.ready('MARKER_ADD', 12).identify(2),
+        msg.ready('MARKER_ADD', 16).identify(3),
+        msg.ready('MARKER_REMOVE', 0).identify(4),
+        msg.ready('MARKER_CLEAR_ALL').identify(6),
+        msg.ready('MARKER_MOVE', pm(origin=16, destination=15)).identify(5),
+        msg.ready('SHAPE', eng.Shape('SNAKE', 10, 5)).identify(7),
         ]
 
 message8 = rx.Observable.from_(msgs)
 
-engine = Engine(message8)
+engine = eng.Engine(message8)
 engine.output8.subscribe(print)
 
 
