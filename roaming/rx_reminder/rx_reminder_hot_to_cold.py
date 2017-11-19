@@ -7,6 +7,61 @@ Created on Thu Nov  9 17:45:24 2017
 import rx
 import time
 from collections import namedtuple
+from rx.internal import extensionmethod
+
+@extensionmethod(rx.Observable)
+def shareReplayOperator(bufferSize, windowTime, scheduler):
+    source = self
+    subject = None
+    refCount = 0
+    subscription = None
+    hasError = False
+    isComplete = False
+
+    def shareReplayOperation(this, source) :
+        nonlocal refCount
+        nonlocal hasError
+#        nonlocal isComplete
+        nonlocal subscription
+        nonlocal subject
+
+        refCount += 1
+        if (not subject or hasError):
+            hasError = False
+            subject = rx.subjects.ReplaySubject(bufferSize, windowTime, scheduler)
+
+            def on_next(value):
+                subject.on_next(value)
+
+            def on_error(err):
+                nonlocal hasError
+                hasError = True
+                subject.on_error(err)
+
+            def on_complete():
+                nonlocal isComplete
+                isComplete = True
+                subject.on_completed()
+
+
+            subscription = source.subscribe(on_next=on_next,
+                                            on_error=on_error,
+                                            on_complete=on_complete
+                                            )
+
+    innerSub = subject.subscribe(this)
+
+    def r_func():
+        nonlocal refCount
+        refCount -= 1
+        innerSub.unsubscribe()
+        if (subscription and refCount == 0 and isComplete):
+            subscription.unsubscribe()
+
+    return r_func()
+
+
+
 
 
 class Accumulator():
@@ -55,6 +110,7 @@ def spawn_marker_pipeline(action):
               .combine_latest([idx8, buff_energy8], select_e)
               .map(lambda e: Msg('MARKER_{}_energy'.format(idx), e))
               )
+
         r8 = (rx.Observable
               .combine_latest([idx8, resource8], lambda i, rs: rs[i])
               .map(lambda e: Msg('MARKER_{}_resource'.format(idx), e))
@@ -79,6 +135,7 @@ resource8.on_next(resource.get())
 #energy8.on_next(energy.get())
 
 action8.on_next(Msg(ADD, 3))
+
 energy8.on_next(energy.get())
 
 

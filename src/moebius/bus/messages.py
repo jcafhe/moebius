@@ -30,9 +30,9 @@ PROCESSING = 'PROCESSING'
 ERROR = 'ERROR'
 
 UNIDENTIFIED = 'UNIDENTIFIED'
-UNIDENTIFIED_SEEDS = freeze({UNIDENTIFIED: ps()})
+NO_SEED = freeze({UNIDENTIFIED: ps()})
 
-def ready(tag, payload=None, seeds=UNIDENTIFIED_SEEDS):
+def ready(tag, payload=None, seeds=NO_SEED):
     """
     Returns a bus message with a READY status.
     """
@@ -42,7 +42,7 @@ def ready(tag, payload=None, seeds=UNIDENTIFIED_SEEDS):
               seeds=seeds)
 
 
-def processing(tag, ratio=None, meta=None, seeds=UNIDENTIFIED_SEEDS):
+def processing(tag, ratio=None, meta=None, seeds=NO_SEED):
     """
     Returns a bus message with a PROCESSING status.
 
@@ -58,7 +58,7 @@ def processing(tag, ratio=None, meta=None, seeds=UNIDENTIFIED_SEEDS):
               seeds=seeds)
 
 
-def error(tag, ex, seeds=UNIDENTIFIED_SEEDS):
+def error(tag, ex, seeds=NO_SEED):
     return BM(tag=tag,
               status=ERROR,
               payload=ex,
