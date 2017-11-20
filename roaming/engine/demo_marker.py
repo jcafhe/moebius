@@ -32,14 +32,16 @@ action8 = rx.subjects.Subject()
 
 push_signal = rx.subjects.Subject()
 push_energy = rx.subjects.Subject()
+push_sr = rx.subjects.Subject()
 
 signalsR8 = push_signal
 energyR8 = push_energy
-
+srR8 = push_sr
 
 pipeline8 = markers.create_markers_pipeline(action8,
-                                            signalsR8,
-                                            energyR8)
+                                            signalsR8=signalsR8,
+                                            energiesR8=energyR8,
+                                            sampling_rateR8=srR8)
 
 ids = ['ID#{:02}'.format(i) for i in range(20)]
 
@@ -61,6 +63,8 @@ action8.on_next(markers.track(ids[2]))
 print('\nupdate #01 with sig_idx=2')
 action8.on_next(markers.update_signal_idx('ID#01', 2))
 
+print('\npushing sr')
+push_sr.on_next(ready('SAMPLING_RATE', 20))
 
 print('\npushing signals')
 push_signal.on_next(ready('SIGNALS', np.arange(6*3).reshape((6,3)) + 10))

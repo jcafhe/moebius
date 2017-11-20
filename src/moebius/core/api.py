@@ -15,12 +15,39 @@ Ascan = namedtuple('Ascan', ['identifier',
                              ]
                    )
 
-Ressource = namedtuple('Resource', ['rtype',  # ressources type
-                                    'rn',  # resource names
-                                    'ri',  # ressource indexes
-                                    'iir',  # indexes in resource
-                                    ]
+Resource = namedtuple('Resource', ['rtype',  # ressources type
+                                   'rn',  # resource names
+                                   'ri',  # ressource indexes
+                                   'iir',  # indexes in resource
+                                   ]
                        )
+
+
+Modifier = namedtuple('Modifier', 'name, short_description, full_description, function')
+
+
+"""
+Resource stream
+===============
+
+resources: iterable<Resource>
+
+    <Resource>
+        rn:  iterable <str>
+        ri:  np.array <int>
+        iir: np.array <int>
+
+    <Resource>
+        rn:  iterable <str>
+        ri:  np.array <int>
+        iir: np.array <int>
+
+    ...
+
+
+
+"""
+
 
 def create_ascan(nrow=10, ncol=5):
 #    nrow = 10
