@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov 16 19:23:11 2017
+Created on Tue Nov 21 13:26:23 2017
 @author: Jérémie Fache
 """
 
@@ -10,266 +10,406 @@ import numpy as np
 import rx
 from pyrsistent import (m as pm, v, freeze)
 from moebius.bus.messages import (ready, READY, NO_SEED, combine_seeds, oftype)
-from moebius.sharereplay import share_replay
-from . import api
 
-MARKER_TRACK = 'MARKER_TRACK'
-MARKER_UNTRACK = 'MARKER_UNTRACK'
-MARKER_UNTRACK_ALL = 'MARKER_UNTRACK_ALL'
-MARKER_UPDATE_SIGNAL_IDX = 'MARKER_UPDATE_SIGNAL_IDX'
-MARKER_UPDATE_SAMPLE_IDX = 'MARKER_UPDATE_SAMPLE_IDX'
+# input tags
+MARKER_SIGNAL_IDX = 'MARKER_SIGNAL_IDX'
+MARKER_SAMPLE_IDX = 'MARKER_SAMPLE_IDX'
+MARKER_STATUS = 'MARKER_STATUS'
 
+# output tags
 MARKER_SIGNAL = 'MARKER_SIGNAL'
 MARKER_ENERGY = 'MARKER_ENERGY'
-MARKER_RESOURCE = 'MARKER_RESSOURCE'
+MARKER_RESOURCES = 'MARKER_RESSOURCES'
 MARKER_FFT = 'MARKER_FFT'
 MARKER_MOD_FFT = 'MARKER_MOD_FFT'
 MARKER_MOD_SIGNAL = 'MARKER_MOD_SIGNAL'
 
-
-# -----------------------------------------------------------------------------
-def track(marker_id, seeds=NO_SEED):
-    bm = ready(tag=MARKER_TRACK,
-               payload=marker_id,
-               seeds=seeds)
-    return bm
+# status values
+ENABLE = 'ENABLE'
+DISABLE = 'DISABLE'
 
 
-# -----------------------------------------------------------------------------
-def untrack(marker_id, seeds=NO_SEED):
-    bm = ready(tag=MARKER_UNTRACK,
-               payload=marker_id,
-               seeds=seeds)
-    return bm
-
-
-# -----------------------------------------------------------------------------
-def untrack_all(seeds=NO_SEED):
-    bm = ready(tag=MARKER_UNTRACK_ALL,
-               payload=None,
-               seeds=seeds)
-    return bm
-
-
-# -----------------------------------------------------------------------------
-def update_signal_idx(marker_id, signal_idx=None, seeds=NO_SEED):
-    bm = ready(tag=MARKER_UPDATE_SIGNAL_IDX,
-               payload=pm(marker_id=marker_id,
-                          data=signal_idx
-                          ),
-               seeds=seeds,
-               )
-    return bm
-
-
-# -----------------------------------------------------------------------------
-def update_sample_idx(marker_id, sample_idx=None, seeds=NO_SEED):
-    bm = ready(tag=MARKER_UPDATE_SAMPLE_IDX,
-               payload=pm(marker_id=marker_id,
-                          data=sample_idx
-                          ),
-               seeds=seeds,
-               )
-    return bm
-
-
-# -----------------------------------------------------------------------------
-def compute_fft(signal, sampling_rate_Hz):
-    fft = np.fft.rfft(signal)
-    amplitudes = np.abs(fft)
-    phases = np.angle(fft)
-    frequencies = sampling_rate_Hz * np.fft.rfftfreq(len(signal))
-    return _nt('FFT', 'amplitudes, phases, frequencies')(amplitudes,
-                                                         phases,
-                                                         frequencies)
-
-
-def compute_mod():
+class __Unique():
     pass
 
 
-Mark = _nt('Mark', 'marker_id, data')
+# Object to describe a non available value
+NOT_AVAILABLE = None  # __Unique()
+
+
+# Marker id helper functions --------------------------------------------------
+# -----------------------------------------------------------------------------
+def append_marker_id(tag, marker_id):
+    """
+    Appends marker id to a bus message tag.
+    """
+    return tag + '#' + marker_id
+
 
 # -----------------------------------------------------------------------------
-def create_markers_pipeline(action8,
-                            signalsR8=None,
-                            energiesR8=None,
-                            resourcesR8=None,
-                            positionsR8=None,
-                            sampling_rateR8=None,
-                            scheduler_provider=None):
+def extract_marker_id(tag):
+    """
+    Extract marker id from a bus message tag.
+    """
+    return tag.split('#')[-1]
 
-    marker_actionR8 = action8.filter(oftype('MARKER...', READY))
 
-    if signalsR8 is None:
-        signalsR8 = rx.Observable.empty()
-    else:
-        signalsR8 = signalsR8.share_replay(1)
+# -----------------------------------------------------------------------------
+def oftype_with_id(marker_id, tag=None, status=None):
+    # TODO : to be tested
+    legacy_oftype = oftype(tag, status)
 
-    if energiesR8 is None:
-        energiesR8 = rx.Observable.empty()
-    else:
-        energiesR8 = energiesR8.share_replay(1)
+    def inner(bm):
+        bm_tag = bm.tag
+        if '#' in bm_tag:
+            li = bm_tag.split('#')
+            if len(li) > 2:
+                etext = ("Multiple '#' has been found in bus message tag. "
+                         "This symbol is reserved for ids. Got {}".format(bm))
+                raise ValueError(etext)
 
-    if resourcesR8 is None:
-        resourcesR8 = rx.Observable.empty()
-    else:
-        resourcesR8 = resourcesR8.share_replay(1)
+            matches_id = marker_id == extract_marker_id(bm_tag)
+            return matches_id and legacy_oftype(bm._replace(tag=li[0]))
 
-    if positionsR8 is None:
-        positionsR8 = rx.Observable.empty()
-    else:
-        positionsR8 = positionsR8.share_replay(1)
+        else:
+            return False
 
-    if sampling_rateR8 is None:
-        sampling_rateR8 = rx.Observable.empty()
-    else:
-        sampling_rateR8 = sampling_rateR8.share_replay(1)
+    return inner
+
+
+# Bus Message helper functions ------------------------------------------------
+# -----------------------------------------------------------------------------
+def bm_signal_idx(marker_id, signal_idx=0, seeds=NO_SEED):
+    """
+    Helper function to create a bus message with tag MARKER_SIGNAL_IDX.
+    """
+    if signal_idx < 0:
+        raise ValueError('signal_idx must be > 0. '
+                         'Got {}'.format(signal_idx))
+
+    tag = append_marker_id(MARKER_SIGNAL_IDX, marker_id)
+    bm = ready(tag=tag,
+               payload=signal_idx,
+               seeds=seeds,
+               )
+    return bm
+
+
+# -----------------------------------------------------------------------------
+def bm_sample_idx(marker_id, sample_idx=0, seeds=NO_SEED):
+    """
+    Helper function to create a bus message with tag MARKER_SAMPLE_IDX.
+    """
+    tag = append_marker_id(MARKER_SAMPLE_IDX, marker_id)
+    bm = ready(tag=tag,
+               payload=sample_idx,
+               seeds=seeds,
+               )
+    return bm
+
+
+# -----------------------------------------------------------------------------
+def bm_status(marker_id, status, seeds=NO_SEED):
+    """
+    Helper function to create a bus message with tag MARKER_STATUS.
+    """
+    if status != ENABLE and status != DISABLE:
+        raise ValueError('status must be {} or {}. '
+                         'Got {}'.format(ENABLE, DISABLE, status))
+
+    tag = append_marker_id(MARKER_STATUS, marker_id)
+    bm = ready(tag=tag,
+               payload=status,
+               seeds=seeds,
+               )
+    return bm
+
+
+# Pipeline creation functions -------------------------------------------------
+# -----------------------------------------------------------------------------
+def create_extract_signal(marker_id, scheduler=None):
+    """
+    returns a function returning an Observable to extract a signal
+    from a data array for a specific marker id.
+
+    .. function :: inner(statusR, signal_idxR, signalsR)
+
+       :param statusR: bus message [READY] holding the ENABLE/DISABLE
+                       state of the current marker
+       :param signal_idxR: bus message [READY] holding the signal index to
+                           be used
+       :param signalsR: bus message [READY] holding signals data array
+       :return: rx.Observable
+    """
+
+    TAG = append_marker_id(MARKER_SIGNAL, marker_id)
+
+    def inner(statusR, signal_idxR, signalsR):
+        """
+        .. function :: inner(statusR, signal_idxR, signalsR)
+
+           :param statusR: bus message [READY] holding the ENABLE/DISABLE
+                           state of the current marker
+           :param signal_idxR: bus message [READY] holding the signal index to
+                               be used
+           :param signalsR: bus message [READY] holding signals data array
+           :return: rx.Observable
+        """
+
+        status = statusR.payload
+
+        if status == DISABLE:
+            return rx.Observable.empty()
+
+        seeds = combine_seeds(signal_idxR.seeds, signalsR.seeds, statusR.seeds)
+        sig_idx = signal_idxR.payload
+        signals = signalsR.payload
+
+        try:
+            data = signals[sig_idx][:]
+        except IndexError:
+            data = NOT_AVAILABLE
+
+        msg = ready(tag=TAG,
+                    payload=data,
+                    seeds=seeds,
+                    )
+
+        return (rx.Observable.just(value=msg, scheduler=scheduler))
+
+    return inner
+
+
+# -----------------------------------------------------------------------------
+def create_extract_energy(marker_id, scheduler=None):
+    """
+    returns a function returning an Observable to extract a single energy
+    value from a data array for a specific marker id.
+
+    .. function :: inner(statusR, signal_idxR, signalsR)
+
+       :param statusR: bus message [READY] holding the ENABLE/DISABLE
+                       state of the current marker
+       :param signal_idxR: bus message [READY] holding the signal index to
+                           be used
+       :param energiesR: bus message [READY] holding energies data array
+       :return: rx.Observable
+    """
+
+    TAG = append_marker_id(MARKER_ENERGY, marker_id)
+
+    def inner(statusR, signal_idxR, energiesR):
+        """
+        .. function :: inner(statusR, signal_idxR, signalsR)
+
+           :param statusR: bus message [READY] holding the ENABLE/DISABLE
+                           state of the current marker
+           :param signal_idxR: bus message [READY] holding the signal index to
+                               be used
+           :param energiesR: bus message [READY] holding energies data array
+           :return: rx.Observable
+        """
+        status = statusR.payload
+
+        if status == DISABLE:
+            return rx.Observable.empty()
+
+        seeds = combine_seeds(signal_idxR.seeds,
+                              energiesR.seeds,
+                              statusR.seeds)
+
+        sig_idx = signal_idxR.payload
+        energies = energiesR.payload
+
+        try:
+            data = energies[sig_idx][:]
+        except IndexError:
+            data = NOT_AVAILABLE
+
+        msg = ready(tag=TAG,
+                    payload=data,
+                    seeds=seeds,
+                    )
+
+        return (rx.Observable.just(value=msg, scheduler=scheduler))
+
+    return inner
+
+
+# -----------------------------------------------------------------------------
+def create_extract_resources(marker_id, scheduler=None):
+    """
+    returns a function returning an Observable to extract resources related to
+    a specific signal index for a specific marker id.
+
+    .. function :: inner(statusR, signal_idxR, resourcesR)
+
+       :param statusR: bus message [READY] holding the ENABLE/DISABLE
+                           state of the current marker
+       :param signal_idxR: bus message [READY] holding the signal index to
+                           be used
+       :param resourcesR: bus message [READY] holding ressources data
+       :return: rx.Observable
+    """
+
+    TAG = append_marker_id(MARKER_RESOURCES, marker_id)
+
+    def inner(statusR, signal_idxR, resourcesR):
+        """
+        .. function :: inner(statusR, signal_idxR, resourcesR)
+
+           :param statusR: bus message [READY] holding the ENABLE/DISABLE
+                               state of the current marker
+           :param signal_idxR: bus message [READY] holding the signal index to
+                               be used
+           :param resourcesR: bus message [READY] holding ressources data
+           :return: rx.Observable
+        """
+        return rx.Observable.empty()
+
+    return inner
+
+
+Spectrum = _nt('Spectrum', 'amplitudes, phases, frequencies')
+
+
+# -----------------------------------------------------------------------------
+def create_compute_fft(marker_id, scheduler=None):
+    """
+    returns a function returning an Observable to compute fft
+    from a signal and a sampling rate for a specific marker id.
+
+    .. function :: inner(marker_signalR, sampling_rateR)
+
+       :param marker_signalR: bus message [READY] holding the signal data
+       :param sampling_rateR: bus message [READY] holding the sampling rate
+       :return: rx.Observable
+    """
+    TAG = append_marker_id(MARKER_FFT, marker_id)
+
+    def compute(signal, sampling_rate_Hz):
+        fft = np.fft.rfft(signal)
+        amplitudes = np.abs(fft)
+        phases = np.angle(fft)
+        frequencies = sampling_rate_Hz * np.fft.rfftfreq(len(signal))
+        return Spectrum(amplitudes, phases, frequencies)
+
+    def inner(marker_signalR, sampling_rateR):
+        """
+        .. function :: inner(marker_signalR, sampling_rateR)
+
+           :param marker_signalR: bus message [READY] holding the signal data
+           :param sampling_rateR: bus message [READY] holding the sampling rate
+           :return: rx.Observable
+        """
+
+        sampling_rate_Hz = sampling_rateR.payload
+        signal = marker_signalR.payload
+
+        if signal is NOT_AVAILABLE:
+            return rx.Observable.empty()
+
+        seeds = combine_seeds(marker_signalR.seeds,
+                              sampling_rateR.seeds,
+                              )
+
+        return (rx.Observable
+                .just(None, scheduler)
+                .map(lambda _: compute(signal, sampling_rate_Hz))
+                .map(lambda data: ready(tag=TAG, payload=data, seeds=seeds))
+                )
+
+    return inner
+
+
+# -----------------------------------------------------------------------------
+def create_markers(marker_ids,
+                   action8,
+                   signalsR8=None,
+                   energiesR8=None,
+                   resourcesR8=None,
+                   positionsR8=None,
+                   sampling_rateR8=None,
+                   sensor_positionR8=None,
+                   axis_compR8=None,
+                   scheduler_provider=None):
+
+    marker_actionR8 = (action8
+                       .filter(oftype('MARKER...', READY))
+                       )
+
+    signalsR8 = signalsR8 or rx.Observable.empty()
+    energiesR8 = energiesR8 or rx.Observable.empty()
+    resourcesR8 = resourcesR8 or rx.Observable.empty()
+    positionsR8 = positionsR8 or rx.Observable.empty()
+    sampling_rateR8 = sampling_rateR8 or rx.Observable.empty()
 
     scheduler_provider = scheduler_provider or rx.concurrency
 
-    trackR8 = marker_actionR8.filter(oftype(MARKER_TRACK))
-    untrackR8 = marker_actionR8.filter(oftype(MARKER_UNTRACK))
-    untrack_allR8 = marker_actionR8.filter(oftype(MARKER_UNTRACK_ALL))
-    update_sig_idxR8 = marker_actionR8.filter(oftype(MARKER_UPDATE_SIGNAL_IDX))
-    update_smp_idxR8 = marker_actionR8.filter(oftype(MARKER_UPDATE_SAMPLE_IDX))
-
-    NOT_AVAILABLE = None
-
-    def create_single_marker_pipeline(trackR):
-
-        marker_id = trackR.payload
+    def create_single_marker(marker_id):
 
         def test_for_marker_id(bm):
-            return bm.payload.marker_id == marker_id
+            bm_marker_id = extract_marker_id(bm.tag)
+            return bm_marker_id == marker_id
 
-        this_untrackR8 = untrackR8.filter(lambda bm: marker_id == bm.payload)
-        this_update_sig_idxR8 = update_sig_idxR8.filter(test_for_marker_id)
-        this_update_smp_idxR8 = update_smp_idxR8.filter(test_for_marker_id)
+        this_marker_actionR8 = marker_actionR8.filter(test_for_marker_id)
 
-        this_killerR8 = (rx.Observable
-                         .merge(this_untrackR8,
-                                untrack_allR8)
-                         )
+        this_sig_idxR8 = this_marker_actionR8.filter(oftype(MARKER_SIGNAL_IDX + '...'))
+        this_smp_idxR8 = this_marker_actionR8.filter(oftype(MARKER_SAMPLE_IDX + '...'))
+        this_statusR8 = this_marker_actionR8.filter(oftype(MARKER_STATUS + '...'))
 
-        # :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        def extract_signal(update_sig_idxR, signalsR):
-            seeds = combine_seeds(update_sig_idxR.seeds, signalsR.seeds)
-            signals = signalsR.payload
-            sig_idx = update_sig_idxR.payload.data
-
-            try:
-                data = signals[sig_idx]
-            except IndexError:
-                data = NOT_AVAILABLE
-            return ready(tag=MARKER_SIGNAL,
-                         payload=Mark(marker_id=marker_id,
-                                      data=data,
-                                      ),
-                         seeds=seeds,
-                         )
-
+        # SIGNAL ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        extract_signal = create_extract_signal(marker_id)
         this_signal8 = (rx.Observable
-                        .combine_latest(this_update_sig_idxR8, signalsR8, extract_signal)
-                        .take_until(this_killerR8)
+                        .combine_latest(this_statusR8,
+                                        this_sig_idxR8,
+                                        signalsR8,
+                                        extract_signal)
+                        .switch_latest()
+                        .share()
                         )
-
+        # FFT :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        compute_fft = create_compute_fft(marker_id)
         this_signalR8 = this_signal8.filter(oftype(status=READY))
 
-        def fft_pipe(sigR, srR):
-            seeds = combine_seeds(sigR.seeds, srR.seeds)
-            sig = sigR.payload.data
-            sr = srR.payload
-            if sig is NOT_AVAILABLE:
-                return (rx.Observable
-                        .just(ready(tag=MARKER_FFT, payload=Mark(marker_id, NOT_AVAILABLE), seeds=seeds))
-                        )
-
-            return (rx.Observable
-                    .just(0, scheduler_provider.thread_pool_scheduler)
-                    .map(lambda _: compute_fft(sig, sr))
-                    .map(lambda fft: ready(tag=MARKER_FFT, payload=Mark(marker_id, fft), seeds=seeds))
-                    )
-
         this_fft8 = (rx.Observable
-                     .combine_latest(this_signalR8, sampling_rateR8, fft_pipe)
-                     .take_until(this_killerR8)
+                     .combine_latest(this_signalR8,
+                                     sampling_rateR8,
+                                     compute_fft)
                      .switch_latest()
                      )
 
-
-        # :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        def extract_energy(update_sig_idxR, energiesR):
-            seeds = combine_seeds(update_sig_idxR.seeds, energiesR.seeds)
-            energies = energiesR.payload
-            sig_idx = update_sig_idxR.payload.data
-
-            try:
-                data = energies[sig_idx]
-            except IndexError:
-                data = NOT_AVAILABLE
-
-            return ready(tag=MARKER_ENERGY,
-                         payload=Mark(marker_id=marker_id,
-                                         data=data,
-                                         ),
-                         seeds=seeds,
-                         )
-
-        this_energy8 = (energiesR8
-                        .combine_latest(this_update_sig_idxR8, energiesR8, extract_energy)
-                        .take_until(this_killerR8)
+        # ENERGY ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        extract_energy = create_extract_energy(marker_id)
+        this_energy8 = (rx.Observable
+                        .combine_latest(this_statusR8,
+                                        this_sig_idxR8,
+                                        energiesR8,
+                                        extract_energy)
+                        .switch_latest()
                         )
 
-        # :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        def extract_resource(update_sig_idxR, resourcesR):
-            seeds = combine_seeds(update_sig_idxR.seeds, resourcesR.seeds)
-            resources = resourcesR.payload
-            sig_idx = update_sig_idxR.payload.data
-
-            data = []
-            for resource in resources:
-                try:
-                    ri = resource.ri[sig_idx]
-                    iir = resource.iir[sig_idx]
-                    rn = resource.rn[ri]
-                except IndexError:
-                    ri = NOT_AVAILABLE
-                    iir = NOT_AVAILABLE
-                    rn = NOT_AVAILABLE
-
-                rtype = resource.rtype
-                mrk_resource = api.Resource(rtype=rtype, rn=rn, ri=ri, iir=iir)
-                data.append(mrk_resource)
-
-            return ready(tag=MARKER_ENERGY,
-                         payload=Mark(marker_id=marker_id,
-                                      data=data,
-                                      ),
-                         seeds=seeds,
-                         )
-
-        this_resource8 = (resourcesR8
-                        .combine_latest(this_update_sig_idxR8, resourcesR8, extract_resource)
-                        .take_until(this_killerR8)
-                        )
-
+        # RESOURCE ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        extract_resource = create_extract_resources(marker_id)
+        this_resources8 = (rx.Observable
+                           .combine_latest(this_statusR8,
+                                           this_sig_idxR8,
+                                           resourcesR8,
+                                           extract_resource)
+                           .switch_latest()
+                           )
 
         # :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        this_merged_data8 = (rx.Observable
-                            .merge(this_signal8,
-                                   this_fft8,
-                                   this_energy8,
-                                   this_resource8)
-                            )
+        this_merged_data8 = rx.Observable.merge(this_signal8,
+                                                this_fft8,
+                                                this_energy8,
+                                                this_resources8,
+                                                )
+
         return this_merged_data8
 
-    # :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    pipeline8 = (trackR8
-                 .flat_map(create_single_marker_pipeline)
-
-                 )
-    return pipeline8
-
-
-
+#    ndigits = int(np.floor(np.log10(count))) + 1
+#    mids = ['#{:0{ndigits}}'.format(i, ndigits=ndigits) for i in range(count)]
+    obs = [create_single_marker(mid) for mid in marker_ids]
+    print('create pipes for markers {}'.format(marker_ids))
+    return rx.Observable.merge(obs)

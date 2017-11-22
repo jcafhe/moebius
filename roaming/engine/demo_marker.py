@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 """
+Created on Tue Nov 21 16:03:34 2017
+@author: Jérémie Fache
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Thu Nov 16 21:18:31 2017
 @author: Jérémie Fache
 """
@@ -7,7 +13,7 @@ Created on Thu Nov 16 21:18:31 2017
 import rx
 from moebius.sharereplay import share_replay
 from moebius.bus.messages import (ready, oftype, READY)
-from moebius.core import markers
+from moebius.core import markers2
 import numpy as np
 
 class Accumulator():
@@ -38,45 +44,62 @@ signalsR8 = push_signal
 energyR8 = push_energy
 srR8 = push_sr
 
-pipeline8 = markers.create_markers_pipeline(action8,
-                                            signalsR8=signalsR8,
-                                            energiesR8=energyR8,
-                                            sampling_rateR8=srR8)
+mids = ['ID{:1}'.format(i) for i in range(5)]
 
-ids = ['ID#{:02}'.format(i) for i in range(20)]
+pipeline8 = markers2.create_markers(marker_ids=mids,
+                                    action8=action8,
+                                    signalsR8=signalsR8,
+                                    energiesR8=energyR8,
+                                    sampling_rateR8=srR8)
+
 
 print('\nSTARTING ...')
 signalsR8.subscribe(print)
 energyR8.subscribe(print)
 pipeline8.subscribe(print)
 
-print('\ntrack ID#00')
-action8.on_next(markers.track(ids[0]))
-
-print('\ntrack ID#01')
-action8.on_next(markers.track(ids[1]))
-
-print('\ntrack ID#02')
-action8.on_next(markers.track(ids[2]))
+print('\nenable all markers')
+for mid in mids:
+    action8.on_next(markers2.bm_status(mid, markers2.ENABLE))
 
 
-print('\nupdate #01 with sig_idx=2')
-action8.on_next(markers.update_signal_idx('ID#01', 2))
+print('update 0 with sig_idx=0')
+action8.on_next(markers2.bm_signal_idx(mids[0], 0))
+print('update 01 with sig_idx=1')
+action8.on_next(markers2.bm_signal_idx(mids[1], 1))
+print('update 02 with sig_idx=2')
+action8.on_next(markers2.bm_signal_idx(mids[2], 2))
 
-print('\npushing sr')
+print('\npushing sr = 20Hz')
 push_sr.on_next(ready('SAMPLING_RATE', 20))
 
-print('\npushing signals')
-push_signal.on_next(ready('SIGNALS', np.arange(6*3).reshape((6,3)) + 10))
+print('\npushing signals and energies')
+sigs = np.arange(6*3).reshape((6,3))
+enes = np.sum(sigs, axis=1)
+push_signal.on_next(ready('SIGNALS', sigs))
+push_energy.on_next(ready('ENERGIES', enes))
+
+print('\ndisable marker 01')
+action8.on_next(markers2.bm_status(mids[1], markers2.DISABLE))
+
+print('\npushing signals and energies')
+sigs = np.arange(6*3).reshape((6,3)) + 10
+enes = np.sum(sigs, axis=1)
+push_signal.on_next(ready('SIGNALS', sigs))
+push_energy.on_next(ready('ENERGIES', enes))
+
+
+print('\nreenable marker 01')
+action8.on_next(markers2.bm_status(mids[1], markers2.ENABLE))
 
 print('\nupdate #00 with sig_idx=0')
-action8.on_next(markers.update_signal_idx(ids[0], 0))
-
-print('\nupdate #02 with sig_idx=2')
-action8.on_next(markers.update_signal_idx(ids[2], 2))
-
-print('\nuntrack #01')
-action8.on_next(markers.untrack(ids[1]))
-
-print('\npushing signals')
-push_signal.on_next(ready('SIGNALS', np.arange(6*3).reshape((6,3)) + 20))
+action8.on_next(markers2.bm_signal_idx(mids[0], 3))
+#
+#print('\nupdate #02 with sig_idx=2')
+#action8.on_next(markers2.update_signal_idx(ids[2], 2))
+#
+#print('\nuntrack #01')
+#action8.on_next(markers2.untrack(ids[1]))
+#
+#print('\npushing signals')
+#push_signal.on_next(ready('SIGNALS', np.arange(6*3).reshape((6,3)) + 20))
