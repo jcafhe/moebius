@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 21 16:03:34 2017
-@author: Jérémie Fache
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Created on Thu Nov 16 21:18:31 2017
 @author: Jérémie Fache
 """
