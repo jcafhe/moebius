@@ -56,7 +56,7 @@ def extract_marker_id(tag):
 
 # -----------------------------------------------------------------------------
 def oftype_with_id(marker_id, tag=None, status=None):
-    # TODO : to be tested
+    # TODO : write unit tests
     legacy_oftype = oftype(tag, status)
 
     def inner(bm):
@@ -132,7 +132,7 @@ def create_extract_signal(marker_id, scheduler=None):
     returns a function returning an Observable to extract a signal
     from a data array for a specific marker id.
 
-    .. function :: inner(statusR, signal_idxR, signalsR)
+    .. function :: extract_signal(statusR, signal_idxR, signalsR)
 
        :param statusR: bus message [READY] holding the ENABLE/DISABLE
                        state of the current marker
@@ -146,7 +146,7 @@ def create_extract_signal(marker_id, scheduler=None):
 
     def inner(statusR, signal_idxR, signalsR):
         """
-        .. function :: inner(statusR, signal_idxR, signalsR)
+        .. function :: extract_signal(statusR, signal_idxR, signalsR)
 
            :param statusR: bus message [READY] holding the ENABLE/DISABLE
                            state of the current marker
@@ -186,28 +186,28 @@ def create_extract_energy(marker_id, scheduler=None):
     returns a function returning an Observable to extract a single energy
     value from a data array for a specific marker id.
 
-    .. function :: inner(statusR, signal_idxR, signalsR)
+    .. function :: extract_energy(statusR, signal_idxR, signalsR)
 
        :param statusR: bus message [READY] holding the ENABLE/DISABLE
                        state of the current marker
        :param signal_idxR: bus message [READY] holding the signal index to
                            be used
        :param energiesR: bus message [READY] holding energies data array
-       :return: rx.Observable
+       :return: rx.Observable emitting 1 numerical value.
     """
 
     TAG = append_marker_id(MARKER_ENERGY, marker_id)
 
     def inner(statusR, signal_idxR, energiesR):
         """
-        .. function :: inner(statusR, signal_idxR, signalsR)
+        .. function :: extract_energy(statusR, signal_idxR, signalsR)
 
            :param statusR: bus message [READY] holding the ENABLE/DISABLE
                            state of the current marker
            :param signal_idxR: bus message [READY] holding the signal index to
                                be used
            :param energiesR: bus message [READY] holding energies data array
-           :return: rx.Observable
+           :return: rx.Observable emitting 1 numerical value.
         """
         status = statusR.payload
 
@@ -242,29 +242,31 @@ def create_extract_resources(marker_id, scheduler=None):
     returns a function returning an Observable to extract resources related to
     a specific signal index for a specific marker id.
 
-    .. function :: inner(statusR, signal_idxR, resourcesR)
+    .. function :: extract_resources(statusR, signal_idxR, resourcesR)
 
        :param statusR: bus message [READY] holding the ENABLE/DISABLE
                            state of the current marker
        :param signal_idxR: bus message [READY] holding the signal index to
                            be used
        :param resourcesR: bus message [READY] holding ressources data
-       :return: rx.Observable
+       :return: rx.Observable emitting 1d ndarray
     """
 
     TAG = append_marker_id(MARKER_RESOURCES, marker_id)
 
     def inner(statusR, signal_idxR, resourcesR):
         """
-        .. function :: inner(statusR, signal_idxR, resourcesR)
+        .. function :: extract_resources(statusR, signal_idxR, resourcesR)
 
            :param statusR: bus message [READY] holding the ENABLE/DISABLE
                                state of the current marker
            :param signal_idxR: bus message [READY] holding the signal index to
                                be used
            :param resourcesR: bus message [READY] holding ressources data
-           :return: rx.Observable
+           :return: rx.Observable emitting 1d ndarray
         """
+        # TODO : need implementation
+
         return rx.Observable.empty()
 
     return inner
@@ -279,11 +281,13 @@ def create_compute_fft(marker_id, scheduler=None):
     returns a function returning an Observable to compute fft
     from a signal and a sampling rate for a specific marker id.
 
-    .. function :: inner(marker_signalR, sampling_rateR)
+    .. function :: compute_fft(marker_signalR, sampling_rateR)
 
        :param marker_signalR: bus message [READY] holding the signal data
        :param sampling_rateR: bus message [READY] holding the sampling rate
-       :return: rx.Observable
+       :return: rx.Observable emitting a Spertrum namedtuple
+                with three isoshape 1d ndarray as amplitudes,
+                phases, frequencies.
     """
     TAG = append_marker_id(MARKER_FFT, marker_id)
 
@@ -296,14 +300,17 @@ def create_compute_fft(marker_id, scheduler=None):
 
     def inner(marker_signalR, sampling_rateR):
         """
-        .. function :: inner(marker_signalR, sampling_rateR)
+        .. function :: compute_fft(marker_signalR, sampling_rateR)
 
            :param marker_signalR: bus message [READY] holding the signal data
            :param sampling_rateR: bus message [READY] holding the sampling rate
-           :return: rx.Observable
+           :return: rx.Observable emitting a Spertrum namedtuple
+                    with three isoshape 1d ndarray as amplitudes,
+                    phases, frequencies.
         """
 
-        sampling_rate_Hz = sampling_rateR.payload
+        sampling_rate = sampling_rateR.payload
+        sampling_rate_Hz = sampling_rate['Hz']
         signal = marker_signalR.payload
 
         if signal is NOT_AVAILABLE:
@@ -331,7 +338,7 @@ def create_markers(marker_ids,
                    positionsR8=None,
                    sampling_rateR8=None,
                    sensor_positionR8=None,
-                   axis_compR8=None,
+                   axis_compensationR8=None,
                    scheduler_provider=None):
 
     marker_actionR8 = (action8
