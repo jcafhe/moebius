@@ -8,8 +8,10 @@ from collections import namedtuple as _nt
 import numpy as np
 
 import rx
-from pyrsistent import (m as pm, v, freeze)
+from pyrsistent import (m as pm, v as pv, freeze)
 from moebius.bus.messages import (ready, READY, NO_SEED, combine_seeds, oftype)
+import moebius.quantity as qty
+from . import api
 
 # input tags
 MARKER_SIGNAL_IDX = 'MARKER_SIGNAL_IDX'
@@ -19,7 +21,7 @@ MARKER_STATUS = 'MARKER_STATUS'
 # output tags
 MARKER_SIGNAL = 'MARKER_SIGNAL'
 MARKER_ENERGY = 'MARKER_ENERGY'
-MARKER_RESOURCES = 'MARKER_RESSOURCES'
+MARKER_RESOURCES = 'MARKER_RESOURCES'
 MARKER_FFT = 'MARKER_FFT'
 MARKER_MOD_FFT = 'MARKER_MOD_FFT'
 MARKER_MOD_SIGNAL = 'MARKER_MOD_SIGNAL'
@@ -166,7 +168,8 @@ def create_extract_signal(marker_id, scheduler=None):
         signals = signalsR.payload
 
         try:
-            data = signals[sig_idx][:]
+            data = signals.value[sig_idx][:]
+            data = qty.Scalar(data)
         except IndexError:
             data = NOT_AVAILABLE
 
@@ -222,7 +225,8 @@ def create_extract_energy(marker_id, scheduler=None):
         energies = energiesR.payload
 
         try:
-            data = energies[sig_idx][:]
+            data = energies.value[sig_idx][:]
+            data = qty.Scalar(data)
         except IndexError:
             data = NOT_AVAILABLE
 
@@ -266,8 +270,48 @@ def create_extract_resources(marker_id, scheduler=None):
            :return: rx.Observable emitting 1d ndarray
         """
         # TODO : need implementation
+        if statusR.payload == DISABLE:
+            return rx.Observable.empty()
 
-        return rx.Observable.empty()
+        seeds = combine_seeds(statusR.seeds,
+                              signal_idxR.seeds,
+                              resourcesR.seeds)
+
+        src_resources = resourcesR.payload
+        sig_idx = signal_idxR.payload
+
+        rs = pv()
+        for r in src_resources:
+            rtype = r.rtype
+            try:
+                ri = r.ri[sig_idx]
+            except IndexError:
+                ri = NOT_AVAILABLE
+
+            try:
+
+                if ri is NOT_AVAILABLE:
+                    rn = NOT_AVAILABLE
+                else:
+                    rn = r.rn[ri]
+
+            except IndexError:
+                rn = NOT_AVAILABLE
+
+            try:
+                iir = r.iir[sig_idx]
+            except IndexError:
+                iir = NOT_AVAILABLE
+
+            res = api.Resource(rtype=rtype,
+                               rn=rn,
+                               ri=ri,
+                               iir=iir,
+                               )
+
+            rs = rs.append(res)
+
+        return rx.Observable.just(ready(tag=TAG, payload=rs, seeds=seeds))
 
     return inner
 
@@ -291,12 +335,18 @@ def create_compute_fft(marker_id, scheduler=None):
     """
     TAG = append_marker_id(MARKER_FFT, marker_id)
 
-    def compute(signal, sampling_rate_Hz):
-        fft = np.fft.rfft(signal)
+    def compute(signal, sampling_rate):
+        sig = signal.value
+
+        fft = np.fft.rfft(sig)
         amplitudes = np.abs(fft)
         phases = np.angle(fft)
-        frequencies = sampling_rate_Hz * np.fft.rfftfreq(len(signal))
-        return Spectrum(amplitudes, phases, frequencies)
+        frequencies = sampling_rate * np.fft.rfftfreq(len(sig))
+
+        return Spectrum(amplitudes=qty.Scalar(amplitudes),
+                        phases=qty.Angle(phases, 'rad'),
+                        frequencies=frequencies
+                        )
 
     def inner(marker_signalR, sampling_rateR):
         """
@@ -310,7 +360,7 @@ def create_compute_fft(marker_id, scheduler=None):
         """
 
         sampling_rate = sampling_rateR.payload
-        sampling_rate_Hz = sampling_rate['Hz']
+#        sampling_rate_Hz = sampling_rate['Hz']
         signal = marker_signalR.payload
 
         if signal is NOT_AVAILABLE:
@@ -322,7 +372,7 @@ def create_compute_fft(marker_id, scheduler=None):
 
         return (rx.Observable
                 .just(None, scheduler)
-                .map(lambda _: compute(signal, sampling_rate_Hz))
+                .map(lambda _: compute(signal, sampling_rate))
                 .map(lambda data: ready(tag=TAG, payload=data, seeds=seeds))
                 )
 

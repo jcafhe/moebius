@@ -3,7 +3,7 @@
 Created on Wed Apr  5 15:17:00 2017
 @author: Jérémie Fache
 """
-
+import numpy as _np
 import operator as _operator
 import math as _math
 from collections import namedtuple as _nt
@@ -78,10 +78,6 @@ class BaseQuantity(metaclass=_ABCMeta):
         """
         try:
             self.value.ndim
-            array = self.value
-            minv = array.min()
-            maxv = array.max()
-
             raise ValueError("Quantity does not support auto property for "
                              "numpy array. numpy array: {}".format(self.value))
         except AttributeError:
@@ -177,8 +173,32 @@ class BaseQuantity(metaclass=_ABCMeta):
         return '{}{}'.format(self.value, self.unit)
 
     def __eq__(self, other):
-        return isinstance(other, type(self)) and \
-                self.value == other.to(self.unit).value
+#        return isinstance(other, type(self)) and \
+#                self.value == other.to(self.unit).value
+
+        if not isinstance(other, type(self)):
+            return False
+
+        # same type of quantity
+        # check for numpy array
+        if isinstance(self.value, _np.ndarray):
+            if isinstance(other.value, _np.ndarray):
+                # other and self are numpy array
+                other_val = other.to(self.unit).value
+                return _np.all(other_val == self.value)
+
+            else:
+                # self is numpy array but not other
+                return False
+
+        else:
+            if isinstance(other.value, _np.ndarray):
+                # other is numpy array but not self
+                return False
+            else:
+                # self and other are not numpy array
+                return self.value == other.to(self.unit).value
+
 
     def __add__(self, other):
         if isinstance(other, type(self)):
@@ -222,6 +242,9 @@ class BaseQuantity(metaclass=_ABCMeta):
 
     def __le__(self, other):
         return self._compare(other, _operator.le)
+
+    def __len__(self):
+        return len(self.__value)
 
     def _compare(self, other, op):
         if isinstance(other, type(self)):
@@ -510,7 +533,11 @@ class Undefined(BaseQuantity):
 
 # -----------------------------------------------------------------------------
     def __init__(self, value=1.0, unit=None):
-        self._value = value
+        if isinstance(value, BaseQuantity):
+            if isinstance(value, Undefined):
+                self._value = value.value
+        else:
+            self._value = value
 
 # -----------------------------------------------------------------------------
     @property
@@ -598,9 +625,6 @@ class Frequency(Quantity):
     def __init__(self, value=1.0, unit='Hz'):
         Quantity.__init__(self, value, unit, self._UNITS)
 
-#        if value <= 0:
-#            raise ValueError('Frequency: value must be >0, '
-#                             'got {}'.format(value))
 
 # -----------------------------------------------------------------------------
     def to(self, unit):
@@ -662,6 +686,55 @@ class Length(Quantity):
                            'must be one of {}'.format(unit, self._UNITS))
         return Length(self.value * f, unit)
 
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+class Time(Quantity):
+    """
+    Represents a time.
+
+    Units
+    =====
+    s, ms, µs, ns
+
+    Default: **s**
+    """
+
+    _UNITS = ('s', 'ms', 'µs', 'ns')
+    _FACTORS = {'s': 1.0,
+                'ms': 1.0e-3,
+                'µs': 1.0e-6,
+                'ns': 1.0e-9}
+
+# -----------------------------------------------------------------------------
+    @staticmethod
+    def __units__():
+        return Time._UNITS
+
+    @staticmethod
+    def __symbol__():
+        return 't'
+
+    @staticmethod
+    def __tag__():
+        return 'time'
+
+
+# -----------------------------------------------------------------------------
+    def __init__(self, value=0.0, unit='s'):
+        Quantity.__init__(self, value, unit, self._UNITS)
+
+# -----------------------------------------------------------------------------
+    def to(self, unit):
+        if unit == self.unit:
+            return self
+
+        try:
+            f = self._FACTORS[self.unit] / self._FACTORS[unit]
+        except KeyError:
+            raise KeyError('<Time> "{}" wrong unit , '
+                           'must be one of {}'.format(unit, self._UNITS))
+        return Time(self.value * f, unit)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -745,11 +818,13 @@ class Angle(Quantity):
 
 # -----------------------------------------------------------------------------
     def _deg_to_rad(self):
-        return Angle(_math.radians(self.value), 'rad')
+        return Angle(_np.radians(self.value), '°')
+#        return Angle(_math.radians(self.value), 'rad')
 
 # -----------------------------------------------------------------------------
     def _rad_to_deg(self):
-        return Angle(_math.degrees(self.value), '°')
+        return Angle(_np.degrees(self.value), '°')
+#        return Angle(_math.degrees(self.value), '°')
 
 # -----------------------------------------------------------------------------
     def to(self, unit):

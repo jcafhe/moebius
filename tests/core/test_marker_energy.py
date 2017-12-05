@@ -15,52 +15,52 @@ from .testing import assert_message_equality_with_np
 
 # -----------------------------------------------------------------------------
 def test_enable():
-    signals = np.arange(10 * 6).reshape((10, 6))
+    energies = np.arange(10 * 6).reshape((10, 6))
     sig_idx = 5
-    sig = signals[sig_idx]
+    ene = energies[sig_idx]
     mid = 'A'
 
     scheduler = rx.testing.TestScheduler()
-    extract_signal = markers.create_extract_signal(mid, scheduler)
+    extract_energy = markers.create_extract_energy(mid, scheduler)
 
     bm_status = markers.bm_status(mid, markers.ENABLE).identify('X')
     bm_signal_idx = markers.bm_signal_idx(mid, sig_idx).identify('Y')
-    bm_signal = ready('SIGNALS', qty.Scalar(signals)).identify('Z')
+    bm_energies = ready('ENERGY', qty.Scalar(energies)).identify('Z')
     seeds = combine_seeds(bm_status.seeds,
                           bm_signal_idx.seeds,
-                          bm_signal.seeds)
+                          bm_energies.seeds)
 
-    obs = extract_signal(bm_status,
+    obs = extract_energy(bm_status,
                          bm_signal_idx,
-                         bm_signal
+                         bm_energies
                          )
 
-    expected_values = [ready('MARKER_SIGNAL#A', qty.Scalar(sig), seeds=seeds), ]
+    expected_values = [ready('MARKER_ENERGY#A', qty.Scalar(ene), seeds=seeds), ]
     actual_values = []
 
     obs.subscribe(lambda bm: actual_values.append(bm))
     scheduler.start()
 
     for exp, act in zip(expected_values, actual_values):
-        assert_message_equality_with_np(exp, act)
-
+#        assert_message_equality_with_np(exp, act)
+        assert (exp == act)
 
 # -----------------------------------------------------------------------------
 def test_disable_returns_empty_observable():
-    signals = np.arange(10 * 6).reshape((10, 6))
+    energies = np.arange(10 * 6).reshape((10, 6))
     sig_idx = 5
     mid = 'A'
 
     scheduler = rx.testing.TestScheduler()
-    extract_signal = markers.create_extract_signal(mid, scheduler)
+    extract_energy = markers.create_extract_energy(mid, scheduler)
 
     bm_status = markers.bm_status(mid, markers.DISABLE).identify('X')
     bm_signal_idx = markers.bm_signal_idx(mid, sig_idx).identify('Y')
-    bm_signal = ready('SIGNALS', qty.Scalar(signals)).identify('Z')
+    bm_energies = ready('ENERGIES', qty.Scalar(energies)).identify('Z')
 
-    obs = extract_signal(bm_status,
+    obs = extract_energy(bm_status,
                          bm_signal_idx,
-                         bm_signal
+                         bm_energies
                          )
 
     actual_values = []
@@ -72,32 +72,32 @@ def test_disable_returns_empty_observable():
 
 # -----------------------------------------------------------------------------
 def test_index_out_of_range_emits_NOT_AVAILABLE():
-    signals = np.arange(10 * 6).reshape((10, 6))
+    energies = np.arange(10 * 6).reshape((10, 6))
 
     sig_idx = 10
     mid = 'A'
 
     scheduler = rx.testing.TestScheduler()
-    extract_signal = markers.create_extract_signal(mid, scheduler)
+    extract_energy = markers.create_extract_energy(mid, scheduler)
 
     bm_status = markers.bm_status(mid, markers.ENABLE).identify('X')
     bm_signal_idx = markers.bm_signal_idx(mid, sig_idx).identify('Y')
-    bm_signal = ready('SIGNALS', qty.Scalar(signals)).identify('Z')
+    bm_energies = ready('ENERGIES', qty.Scalar(energies)).identify('Z')
     seeds = combine_seeds(bm_status.seeds,
                           bm_signal_idx.seeds,
-                          bm_signal.seeds)
+                          bm_energies.seeds)
 
     actual_values = []
-    expected_values = [ready('MARKER_SIGNAL#A', markers.NOT_AVAILABLE, seeds=seeds),
+    expected_values = [ready('MARKER_ENERGY#A', markers.NOT_AVAILABLE, seeds=seeds),
                              ]
 
-    obs = extract_signal(bm_status,
+    obs = extract_energy(bm_status,
                          bm_signal_idx,
-                         bm_signal
+                         bm_energies
                          )
 
     obs.subscribe(lambda bm: actual_values.append(bm))
     scheduler.start()
 
     for exp, act in zip(expected_values, actual_values):
-        assert_message_equality_with_np(exp, act)
+        assert(exp == act)

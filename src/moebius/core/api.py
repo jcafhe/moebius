@@ -15,6 +15,8 @@ Ascan = namedtuple('Ascan', ['identifier',
                              ]
                    )
 
+FILE = 'file'
+
 Resource = namedtuple('Resource', ['rtype',  # ressources type
                                    'rn',  # resource names
                                    'ri',  # ressource indexes

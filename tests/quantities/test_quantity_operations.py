@@ -4,7 +4,7 @@ Created on Wed Jul 26 09:10:41 2017
 
 @author: Jérémie Fache
 """
-
+import numpy as np
 import pytest
 import moebius.quantity as qty
 from .test_custom_quantities import (P, Q,
@@ -164,6 +164,63 @@ def test_equality__S_S():
 def test_equality__U_U():
     u0 = qty.Undefined(12.0)
     u1 = qty.Undefined(12.0)
+    assert(u0 == u1)
+
+# -----------------------------------------------------------------------------
+def test_equality__npQu_npQu():
+    q0 = Q(np.arange(10))
+    q1 = Q(np.arange(10))
+    assert(q0 == q1)
+
+def test_equality__npQu_Qu():
+    q0 = Q(np.arange(10))
+    q1 = Q(10)
+    assert(q0 != q1)
+
+def test_equality__Qu_npQu():
+    q0 = Q(10)
+    q1 = Q(np.arange(10))
+    assert(q0 != q1)
+
+def test_equality__npQu_npQv():
+    q0 = Q(np.arange(10.0) * 1000.0, 'u')
+    q1 = Q(np.arange(10.0), 'ku')
+    assert(q0 == q1)
+
+
+def test_equality__npQ_npS():
+    q = Q(np.arange(10.0))
+    s = qty.Scalar(np.arange(10.0))
+    assert(q != s)
+
+
+def test_equality__npQ_npU():
+    q = Q(np.arange(10.0))
+    u = qty.Undefined(np.arange(10.0))
+    assert(q != u)
+
+
+def test_equality__npS_npQ():
+    q = Q(np.arange(10.0))
+    s = qty.Scalar(np.arange(10.0))
+    assert(s != q)
+
+
+def test_equality__npU_npQ():
+    q = Q(np.arange(10.0))
+    u = qty.Undefined(np.arange(10.0))
+    assert(u != q)
+
+
+def test_equality__npS_npS():
+    s0 = qty.Scalar(np.arange(10.0))
+    s1 = qty.Scalar(np.arange(10.0))
+    assert(s0 == s1)
+
+
+def test_equality__npU_npU():
+    u0 = qty.Undefined(np.arange(10.0))
+    u1 = qty.Undefined(np.arange(10.0))
     assert(u0 == u1)
 
 
