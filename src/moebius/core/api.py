@@ -15,18 +15,18 @@ Ascan = namedtuple('Ascan', ['identifier',
                              ]
                    )
 
-FILE = 'file'
+#FILE = 'file'
+#
+#Resource = namedtuple('Resource', ['rtype',  # ressources type
+#                                   'rn',  # resource names
+#                                   'ri',  # ressource indexes
+#                                   'iir',  # indexes in resource
+#                                   ]
+#                       )
 
-Resource = namedtuple('Resource', ['rtype',  # ressources type
-                                   'rn',  # resource names
-                                   'ri',  # ressource indexes
-                                   'iir',  # indexes in resource
-                                   ]
-                       )
 
-
-Modifier = namedtuple('Modifier', 'name, short_description, full_description, function')
-
+Signal_modifier = namedtuple('Signal_modifier', 'name, short_description, full_description, function1d, function2d')
+Signal_modifier_parameters = namedtuple('Signal_modifier_parameters', 'name, parameters')
 
 """
 Resource stream

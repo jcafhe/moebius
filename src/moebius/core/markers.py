@@ -11,7 +11,8 @@ import rx
 from pyrsistent import (m as pm, v as pv, freeze)
 from moebius.bus.messages import (ready, READY, NO_SEED, combine_seeds, oftype)
 import moebius.quantity as qty
-from . import api
+#from . import api
+from . import ressource
 
 # input tags
 MARKER_SIGNAL_IDX = 'MARKER_SIGNAL_IDX'
@@ -141,6 +142,7 @@ def create_extract_signal(marker_id, scheduler=None):
        :param signal_idxR: bus message [READY] holding the signal index to
                            be used
        :param signalsR: bus message [READY] holding signals data array
+                        wrapped in quantity.Scalar
        :return: rx.Observable
     """
 
@@ -155,6 +157,7 @@ def create_extract_signal(marker_id, scheduler=None):
            :param signal_idxR: bus message [READY] holding the signal index to
                                be used
            :param signalsR: bus message [READY] holding signals data array
+                            wrapped in quantity.Scalar
            :return: rx.Observable
         """
 
@@ -196,6 +199,7 @@ def create_extract_energy(marker_id, scheduler=None):
        :param signal_idxR: bus message [READY] holding the signal index to
                            be used
        :param energiesR: bus message [READY] holding energies data array
+                         wrapped in quantity.Scalar
        :return: rx.Observable emitting 1 numerical value.
     """
 
@@ -210,6 +214,7 @@ def create_extract_energy(marker_id, scheduler=None):
            :param signal_idxR: bus message [READY] holding the signal index to
                                be used
            :param energiesR: bus message [READY] holding energies data array
+                             wrapped in quantity.Scalar
            :return: rx.Observable emitting 1 numerical value.
         """
         status = statusR.payload
@@ -269,7 +274,7 @@ def create_extract_resources(marker_id, scheduler=None):
            :param resourcesR: bus message [READY] holding ressources data
            :return: rx.Observable emitting 1d ndarray
         """
-        # TODO : need implementation
+
         if statusR.payload == DISABLE:
             return rx.Observable.empty()
 
@@ -289,7 +294,6 @@ def create_extract_resources(marker_id, scheduler=None):
                 ri = NOT_AVAILABLE
 
             try:
-
                 if ri is NOT_AVAILABLE:
                     rn = NOT_AVAILABLE
                 else:
@@ -303,11 +307,11 @@ def create_extract_resources(marker_id, scheduler=None):
             except IndexError:
                 iir = NOT_AVAILABLE
 
-            res = api.Resource(rtype=rtype,
-                               rn=rn,
-                               ri=ri,
-                               iir=iir,
-                               )
+            res = ressource.Resource(rtype=rtype,
+                                     rn=rn,
+                                     ri=ri,
+                                     iir=iir,
+                                     )
 
             rs = rs.append(res)
 
@@ -328,7 +332,9 @@ def create_compute_fft(marker_id, scheduler=None):
     .. function :: compute_fft(marker_signalR, sampling_rateR)
 
        :param marker_signalR: bus message [READY] holding the signal data
+                              wrapped in quantity.Scalar
        :param sampling_rateR: bus message [READY] holding the sampling rate
+                              wrapped in quantity.Frequency
        :return: rx.Observable emitting a Spertrum namedtuple
                 with three isoshape 1d ndarray as amplitudes,
                 phases, frequencies.
@@ -353,14 +359,15 @@ def create_compute_fft(marker_id, scheduler=None):
         .. function :: compute_fft(marker_signalR, sampling_rateR)
 
            :param marker_signalR: bus message [READY] holding the signal data
+                                  wrapped in quantity.Scalar
            :param sampling_rateR: bus message [READY] holding the sampling rate
+                                  wrapped in quantity.Frequency
            :return: rx.Observable emitting a Spertrum namedtuple
-                    with three isoshape 1d ndarray as amplitudes,
+                    with three 1d ndarray as amplitudes,
                     phases, frequencies.
         """
 
         sampling_rate = sampling_rateR.payload
-#        sampling_rate_Hz = sampling_rate['Hz']
         signal = marker_signalR.payload
 
         if signal is NOT_AVAILABLE:

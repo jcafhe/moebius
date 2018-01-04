@@ -63,69 +63,69 @@ class Engine():
         return self._output8
 
 
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-def markers(action8, uv8):
-    tag = 'MARKERS'
-
-    def reducer(previous_bm, bm):
-        state = previous_bm.payload
-
-        if bm.tag == 'MARKER_ADD':
-            idx = int(bm.payload)
-            if idx < 0:
-                raise ValueError('MARKER_ADD does not support index < 0. '
-                                 'Got {}'.format(idx))
-            next_state = state.add(int(bm.payload))
-            return ready(tag=tag,
-                         payload=next_state,
-                         seeds=bm.seeds)
-
-        if bm.tag == 'MARKER_REMOVE':
-            next_state = state.remove(int(bm.payload))
-            return ready(tag=tag,
-                         payload=next_state,
-                         seeds=bm.seeds)
-
-        if bm.tag == 'MARKER_CLEAR_ALL':
-            next_state = ps()
-            return ready(tag=tag,
-                         payload=next_state,
-                         seeds=bm.seeds)
-
-        if bm.tag == 'MARKER_MOVE':
-            origin = bm.payload.origin
-            destination = bm.payload.destination
-            if origin < 0 or destination < 0:
-                etext = ('MARKER_MOVE does not support index < 0. '
-                         'Got origin:{} destination:{}'
-                         .format(origin, destination))
-                raise ValueError(etext)
-
-            next_state = state.remove(origin)
-            next_state = state.add(destination)
-
-            return ready(tag=tag,
-                         payload=next_state,
-                         seeds=bm.seeds)
-
-        return previous_bm
-        etext = 'Action not handled from message {}'.format(bm)
-        raise ValueError(etext)
-
-
-    reducer_tags = ['MARKER_ADD', 'MARKER_REMOVE', 'MARKER_CLEAR_ALL', 'MARKER_MOVE']
-    idx8 = (action8
-            .filter(oftype(tag=reducer_tags, status=READY))
-            .scan(reducer, seed=ready(tag=tag, payload=ps()))
-            )
-
-
-
-    move_up8 = action8.filter(oftype('MARKER_MOVE_UP', READY))
-    move_down8 = action8.filter(oftype('MARKER_MOVE_DOWN', READY))
-    move_left8 = action8.filter(oftype('MARKER_MOVE_LEFT', READY))
-    move_right8 = action8.filter(oftype('MARKER_MOVE_RIGHT', READY))
+## -----------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
+#def markers(action8, uv8):
+#    tag = 'MARKERS'
+#
+#    def reducer(previous_bm, bm):
+#        state = previous_bm.payload
+#
+#        if bm.tag == 'MARKER_ADD':
+#            idx = int(bm.payload)
+#            if idx < 0:
+#                raise ValueError('MARKER_ADD does not support index < 0. '
+#                                 'Got {}'.format(idx))
+#            next_state = state.add(int(bm.payload))
+#            return ready(tag=tag,
+#                         payload=next_state,
+#                         seeds=bm.seeds)
+#
+#        if bm.tag == 'MARKER_REMOVE':
+#            next_state = state.remove(int(bm.payload))
+#            return ready(tag=tag,
+#                         payload=next_state,
+#                         seeds=bm.seeds)
+#
+#        if bm.tag == 'MARKER_CLEAR_ALL':
+#            next_state = ps()
+#            return ready(tag=tag,
+#                         payload=next_state,
+#                         seeds=bm.seeds)
+#
+#        if bm.tag == 'MARKER_MOVE':
+#            origin = bm.payload.origin
+#            destination = bm.payload.destination
+#            if origin < 0 or destination < 0:
+#                etext = ('MARKER_MOVE does not support index < 0. '
+#                         'Got origin:{} destination:{}'
+#                         .format(origin, destination))
+#                raise ValueError(etext)
+#
+#            next_state = state.remove(origin)
+#            next_state = state.add(destination)
+#
+#            return ready(tag=tag,
+#                         payload=next_state,
+#                         seeds=bm.seeds)
+#
+#        return previous_bm
+#        etext = 'Action not handled from message {}'.format(bm)
+#        raise ValueError(etext)
+#
+#
+#    reducer_tags = ['MARKER_ADD', 'MARKER_REMOVE', 'MARKER_CLEAR_ALL', 'MARKER_MOVE']
+#    idx8 = (action8
+#            .filter(oftype(tag=reducer_tags, status=READY))
+#            .scan(reducer, seed=ready(tag=tag, payload=ps()))
+#            )
+#
+#
+#
+#    move_up8 = action8.filter(oftype('MARKER_MOVE_UP', READY))
+#    move_down8 = action8.filter(oftype('MARKER_MOVE_DOWN', READY))
+#    move_left8 = action8.filter(oftype('MARKER_MOVE_LEFT', READY))
+#    move_right8 = action8.filter(oftype('MARKER_MOVE_RIGHT', READY))
 
 #    def translate():
 #        pass

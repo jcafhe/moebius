@@ -8,8 +8,8 @@ import rx.testing
 from pyrsistent import (v as pv)
 
 from moebius.core import markers
-from moebius.core.api import (Resource,
-                              FILE)
+from moebius.core.ressource import (Resource,
+                                    FILE)
 
 from moebius.bus.messages import (ready,
                                   combine_seeds)
