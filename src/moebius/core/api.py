@@ -15,40 +15,13 @@ Ascan = namedtuple('Ascan', ['identifier',
                              ]
                    )
 
-#FILE = 'file'
-#
-#Resource = namedtuple('Resource', ['rtype',  # ressources type
-#                                   'rn',  # resource names
-#                                   'ri',  # ressource indexes
-#                                   'iir',  # indexes in resource
-#                                   ]
-#                       )
 
 
 Signal_modifier = namedtuple('Signal_modifier', 'name, short_description, full_description, function1d, function2d')
 Signal_modifier_parameters = namedtuple('Signal_modifier_parameters', 'name, parameters')
 
 """
-Resource stream
-===============
 
-resources: iterable<Resource>
-
-    <Resource>
-        rn:  iterable <str>
-        ri:  np.array <int>
-        iir: np.array <int>
-
-    <Resource>
-        rn:  iterable <str>
-        ri:  np.array <int>
-        iir: np.array <int>
-
-    ...
-
-
-
-"""
 
 
 def create_ascan(nrow=10, ncol=5):

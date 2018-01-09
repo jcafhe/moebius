@@ -287,20 +287,22 @@ def create_extract_resources(marker_id, scheduler=None):
 
         rs = pv()
         for r in src_resources:
+
             rtype = r.rtype
+
             try:
                 ri = r.ri[sig_idx]
             except IndexError:
                 ri = NOT_AVAILABLE
 
-            try:
-                if ri is NOT_AVAILABLE:
-                    rn = NOT_AVAILABLE
-                else:
-                    rn = r.rn[ri]
 
-            except IndexError:
+            if ri is NOT_AVAILABLE:
                 rn = NOT_AVAILABLE
+            else:
+                try:
+                    rn = r.rn[ri]
+                except IndexError:
+                    rn = NOT_AVAILABLE
 
             try:
                 iir = r.iir[sig_idx]

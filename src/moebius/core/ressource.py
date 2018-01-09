@@ -2,6 +2,28 @@
 from collections import namedtuple as _namedtuple
 import h5py as _h5py
 
+"""
+Resource stream
+===============
+
+resources: iterable<Resource>
+
+    <Resource>
+        rtype: str
+        rn:  iterable <str>
+        ri:  np.array <int>
+        iir: np.array <int>
+
+    <Resource>
+        rtype: str
+        rn:  iterable <str>
+        ri:  np.array <int>
+        iir: np.array <int>
+
+    ...
+
+"""
+
 FILE = 'FILE'
 
 Resource = _namedtuple('Resource',
